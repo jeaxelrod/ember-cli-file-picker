@@ -46,13 +46,13 @@ export default Component.extend({
     this.hideProgress();
 
     this.$('.file-picker__input').on(
-      'change', bind(this, 'filesSelected')
+      'change', bind(this, 'onChange')
     );
   },
 
   willDestroyElement: function() {
     this.$('.file-picker__input').off(
-      'change', bind(this, 'filesSelected')
+      'change', bind(this, 'onChange')
     );
   },
 
@@ -60,8 +60,14 @@ export default Component.extend({
    * When the file input changed (a file got selected)
    * @param  {Event} event The file change event
    */
-  filesSelected: function(event) {
+  onChange: function(event) {
     var files = event.target.files;
+    if (this.get('multiple')) {
+      this.sendAction('filesSelected', files);
+    } else {
+      this.sendAction('fileSelected', files[0]);
+    }
+
     if (files.length) {
       this.handleFiles(files);
     } else {
@@ -80,8 +86,20 @@ export default Component.extend({
       this.updatePreview(files);
     }
 
+    /**
+     * If multiple files, iterate through them and send 'fileLoaded' action for
+     * each one.
+     */
     if (this.get('multiple')) {
-      this.sendAction('filesLoaded', files);
+      Array.prototype.slice.call(files).forEach((file) => {
+        if (this.get('readAs') === 'readAsFile') {
+          this.sendAction('fileLoaded', file);
+        } else {
+          this.readFile(file, this.get('readAs')).then((file) => {
+            this.sendAction('fileLoaded', file);
+          });
+        }
+      });
     } else {
       if (this.get('readAs') === 'readAsFile') {
         this.sendAction('fileLoaded', files[0]);
@@ -143,8 +161,6 @@ export default Component.extend({
     return new Ember.RSVP.Promise((resolve, reject) => {
       reader.onload = function(event) {
         resolve({
-          // TODO deprecate filename
-          filename: file.name,
           name: file.name,
           type: file.type,
           data: event.target.result,
@@ -166,6 +182,8 @@ export default Component.extend({
       };
 
       reader.onprogress = Ember.run.bind(this, (event) => {
+        var percentage = event.loaded / event.total * 100;
+        this.sendAction('onProgress', percentage, file);
         this.set('progressValue', event.loaded / event.total * 100);
       });
 
@@ -214,18 +232,18 @@ export default Component.extend({
     if (event.preventDefault) {
       event.preventDefault();
     }
-    if (!this.get('dropzone')) {
-      return;
-    }
-
     event.dataTransfer.dropEffect = 'copy';
   },
   drop: function(event) {
     if (event.preventDefault) {
       event.preventDefault();
     }
-    if (!this.get('dropzone')) {
-      return;
+    var files = event.dataTransfer.files;
+
+    if (this.get('multiple')) {
+      this.sendAction('filesSelected', files);
+    } else {
+      this.sendAction('fileSelected', files[0]);
     }
 
     this.handleFiles(event.dataTransfer.files);
@@ -236,10 +254,6 @@ export default Component.extend({
     if (event.preventDefault) {
       event.preventDefault();
     }
-    if (!this.get('dropzone')) {
-      return;
-    }
-
     if (!this.get('multiple')) {
       this.clearPreview();
     }
@@ -252,10 +266,6 @@ export default Component.extend({
     if (event.preventDefault) {
       event.preventDefault();
     }
-    if (!this.get('dropzone')) {
-      return;
-    }
-
     var count = this.decrementProperty('count');
     if (count === 0) {
       this.$().removeClass('over');
