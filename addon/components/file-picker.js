@@ -82,10 +82,12 @@ export default Component.extend({
   },
 
   /**
-   * Checks with `filesAreValid` function to do just that. If `preview` true
-   * then call `updatePreview`. If `multiple` true, read files accordingly and
-   * call `fileLoaded` for each file. If not, just read file accordingly.
-   * TODO: (opportunity to DRY here).
+   * handleFiles
+   *
+   * Will check to see if files are valid, and calls `updatePreview` if
+   * `preview` is truthy. Then will handle uploading files if `upload` is also
+   * truthy, and also take care of authorizing requests if `session` is truthy.
+   *
    * @param files
    */
   handleFiles: function(files) {
@@ -105,31 +107,25 @@ export default Component.extend({
      */
     if (this.get('multiple')) {
       const filesArray = Array.prototype.slice.call(files);
+      const fd = new FormData();
+      filesArray.forEach((file, index) => {
+        fd.append(`file[${index}]`, file);
+      });
+
       if (this.get('upload') && this.get('url')) {
-        // upload this shit and attach progress events
-        const fd = new FormData();
-        filesArray.forEach((file, index) => {
-          fd.append(`file[${index}]`, file);
-        });
-        const component = this;
-        Ember.$.ajax({
-          url: this.get('url'),
-          data: fd,
-          processData: false,
-          contentType: false,
-          type: 'POST',
-          xhr() {
-            const xhr = Ember.$.ajaxSettings.xhr();
-            xhr.upload.onprogress = (event) => {
-              var percentage = event.loaded / event.total * 100;
-              component.sendAction('onProgress', percentage);
-              component.set('progressValue', event.loaded / event.total * 100);
-            };
-            return xhr;
-          },
-        }).done((response) => {
-          this.sendAction('filesLoaded', response);
-        });
+        if (this.get('session')) {
+          this.get('session').authorize('authorizer:oauth2', (headerName, headerValue) => {
+            const headers = {};
+            headers[headerName] = headerValue;
+            this.sendAjax(this.get('url'), fd, headers).done((response) => {
+              this.sendAction('filesLoaded', response);
+            });
+          });
+        } else {
+          this.sendAjax(this.get('url'), fd).done((response) => {
+            this.sendAction('filesLoaded', response);
+          });
+        }
       } else {
         filesArray.forEach((file) => {
           if (this.get('readAs') === 'readAsFile') {
@@ -143,27 +139,21 @@ export default Component.extend({
       }
     } else {
       if (this.get('upload') && this.get('url')) {
-        const component = this;
         const fd = new FormData();
         fd.append('file', files[0]);
-        Ember.$.ajax({
-          url: this.get('url'),
-          data: fd,
-          processData: false,
-          contentType: false,
-          type: 'POST',
-          xhr() {
-            const xhr = Ember.$.ajaxSettings.xhr();
-            xhr.upload.onprogress = (event) => {
-              var percentage = event.loaded / event.total * 100;
-              component.sendAction('onProgress', percentage);
-              component.set('progressValue', event.loaded / event.total * 100);
-            };
-            return xhr;
-          },
-        }).done((response) => {
-          this.sendAction('fileLoaded', response);
-        });
+        if (this.get('session')) {
+          this.get('session').authorize('authorizer:oauth2', (headerName, headerValue) => {
+            const headers = {};
+            headers[headerName] = headerValue;
+            this.sendAjax(this.get('url'), fd, headers).done((response) => {
+              this.sendAction('fileLoaded', response);
+            });
+          });
+        } else {
+          this.sendAjax(this.get('url'), fd).done((response) => {
+            this.sendAction('fileLoaded', response);
+          });
+        }
       } else {
         if (this.get('readAs') === 'readAsFile') {
           this.sendAction('fileLoaded', files[0]);
@@ -175,6 +165,31 @@ export default Component.extend({
         }
       }
     }
+  },
+
+  /**
+   * Does the deed of sending the ajax. Returns ajax promise to allow caller to
+   * handle resolve case.
+   */
+  sendAjax(url, data, headers) {
+    const component = this;
+    return Ember.$.ajax({
+      url,
+      data,
+      headers,
+      processData: false,
+      contentType: false,
+      type: 'POST',
+      xhr() {
+        const xhr = Ember.$.ajaxSettings.xhr();
+        xhr.upload.onprogress = (event) => {
+          var percentage = event.loaded / event.total * 100;
+          component.sendAction('onProgress', percentage);
+          component.set('progressValue', event.loaded / event.total * 100);
+        };
+        return xhr;
+      },
+    });
   },
 
   /**
