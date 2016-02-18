@@ -128,7 +128,6 @@ export default Component.extend({
             return xhr;
           },
         }).done((response) => {
-          console.log('sending filesLoaded');
           this.sendAction('filesLoaded', response);
         });
       } else {
@@ -163,7 +162,6 @@ export default Component.extend({
             return xhr;
           },
         }).done((response) => {
-          console.log('sending fileLoaded');
           this.sendAction('fileLoaded', response);
         });
       } else {
