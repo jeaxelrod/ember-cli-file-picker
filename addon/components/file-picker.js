@@ -119,11 +119,15 @@ export default Component.extend({
             headers[headerName] = headerValue;
             this.sendAjax(this.get('url'), fd, headers).done((response) => {
               this.sendAction('filesLoaded', response);
+            }).fail((err) => {
+              this.sendAction('filesFailed', err);
             });
           });
         } else {
           this.sendAjax(this.get('url'), fd).done((response) => {
             this.sendAction('filesLoaded', response);
+          }).fail((err) => {
+            this.sendAction('filesFailed', err);
           });
         }
       } else {
@@ -147,11 +151,15 @@ export default Component.extend({
             headers[headerName] = headerValue;
             this.sendAjax(this.get('url'), fd, headers).done((response) => {
               this.sendAction('fileLoaded', response);
+            }).fail((err) => {
+              this.sendAction('fileFailed', err);
             });
           });
         } else {
           this.sendAjax(this.get('url'), fd).done((response) => {
             this.sendAction('fileLoaded', response);
+          }).fail((err) => {
+            this.sendAction('fileFailed', err);
           });
         }
       } else {
