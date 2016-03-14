@@ -74,106 +74,11 @@ export default Component.extend({
       this.sendAction('fileSelected', files[0]);
     }
 
-    if (files.length) {
-      this.handleFiles(files);
-    } else {
+    if (!files.length) {
       this.clearPreview();
     }
   },
 
-  /**
-   * handleFiles
-   *
-   * Will check to see if files are valid, and calls `updatePreview` if
-   * `preview` is truthy. Then will handle uploading files if `upload` is also
-   * truthy, and also take care of authorizing requests if `session` is truthy.
-   *
-   * @param files
-   */
-  handleFiles: function(files) {
-    if (typeof(this.filesAreValid) === 'function') {
-      if (!this.filesAreValid(files)) {
-        return;
-      }
-    }
-
-    if (this.get('preview')) {
-      this.updatePreview(files);
-    }
-
-    /**
-     * If multiple files, iterate through them and send 'fileLoaded' action for
-     * each one.
-     */
-    if (this.get('multiple')) {
-      const filesArray = Array.prototype.slice.call(files);
-      const fd = new FormData();
-      filesArray.forEach((file, index) => {
-        fd.append(`file[${index}]`, file);
-      });
-
-      if (this.get('upload') && this.get('url')) {
-        if (this.get('session')) {
-          this.get('session').authorize('authorizer:oauth2', (headerName, headerValue) => {
-            const headers = {};
-            headers[headerName] = headerValue;
-            this.sendAjax(this.get('url'), fd, headers).done((response) => {
-              this.sendAction('filesLoaded', response);
-            }).fail((err) => {
-              this.sendAction('filesFailed', err);
-            });
-          });
-        } else {
-          this.sendAjax(this.get('url'), fd).done((response) => {
-            this.sendAction('filesLoaded', response);
-          }).fail((err) => {
-            this.sendAction('filesFailed', err);
-          });
-        }
-      } else {
-        filesArray.forEach((file) => {
-          if (this.get('readAs') === 'readAsFile') {
-            this.sendAction('fileLoaded', file);
-          } else {
-            this.readFile(file, this.get('readAs')).then((file) => {
-              this.sendAction('fileLoaded', file);
-            });
-          }
-        });
-      }
-    } else {
-      if (this.get('upload') && this.get('url')) {
-        const fd = new FormData();
-        fd.append('file', files[0]);
-        if (this.get('session')) {
-          this.get('session').authorize('authorizer:oauth2', (headerName, headerValue) => {
-            const headers = {};
-            headers[headerName] = headerValue;
-            this.sendAjax(this.get('url'), fd, headers).done((response) => {
-              this.sendAction('fileLoaded', response);
-            }).fail((err) => {
-              this.sendAction('fileFailed', err);
-            });
-          });
-        } else {
-          this.sendAjax(this.get('url'), fd).done((response) => {
-            this.sendAction('fileLoaded', response);
-          }).fail((err) => {
-            this.sendAction('fileFailed', err);
-          });
-        }
-      } else {
-        if (this.get('readAs') === 'readAsFile') {
-          this.sendAction('fileLoaded', files[0]);
-        } else {
-          this.readFile(files[0], this.get('readAs'))
-          .then((file) => {
-            this.sendAction('fileLoaded', file);
-          });
-        }
-      }
-    }
-  },
 
   /**
    * Does the deed of sending the ajax. Returns ajax promise to allow caller to
