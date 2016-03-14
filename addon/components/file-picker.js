@@ -250,7 +250,6 @@ export default Component.extend({
       this.sendAction('fileSelected', files[0]);
     }
 
-    this.handleFiles(event.dataTransfer.files);
     this.set('count', 0);
     this.$().removeClass('over');
   },
